@@ -1,0 +1,76 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFormation Template to Create an S3 Bucket and IAM User with Restricted Actions
+
+Resources:
+
+  # Create S3 Bucket
+  TestS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "flexstrg-${AWS::AccountId}"
+
+  # Create IAM User with Console Access
+  TestIAMUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: "flexstrg-access-user"  # Desired username
+      LoginProfile:
+        Password: "MySecurePassword123!"  # You can set this to a secure password or use a dynamic parameter
+        PasswordResetRequired: false  
+
+  # Attach Policy to Allow S3 Access to the User
+  TestIAMUserPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: "S3BucketAccessPolicy"
+      Users:
+        - !Ref TestIAMUser
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          # Allow listing all buckets
+          - Effect: Allow
+            Action:
+              - "s3:ListAllMyBuckets"
+            Resource: "*"
+
+          # Allow listing and actions only on the specified bucket
+          - Effect: Allow
+            Action:
+              - "s3:ListBucket"  # Allows listing objects in the specified bucket
+              - "s3:GetObject"
+              - "s3:PutObject"
+              - "s3:DeleteObject"
+            Resource:
+              - !Sub "arn:aws:s3:::flexstrg-${AWS::AccountId}"
+              - !Sub "arn:aws:s3:::flexstrg-${AWS::AccountId}/*"
+
+          # Deny actions on all other buckets
+          - Effect: Deny
+            Action:
+              - "s3:GetObject"
+              - "s3:PutObject"
+              - "s3:DeleteObject"
+            Resource: "*"
+            Condition:
+              StringEquals:
+                s3:Resource: !Sub "arn:aws:s3:::flexstrg-${AWS::AccountId}"  # Deny on all other buckets
+
+Outputs:
+  # Output the Bucket Name
+  BucketName:
+    Value: !Ref TestS3Bucket
+    Description: The name of the created S3 bucket.
+
+  # Output the IAM User Console Login Info
+  ConsoleLoginURL:
+    Value: !Sub "https://console.aws.amazon.com/"
+    Description: The URL for AWS Management Console login.
+
+  IAMUserName:
+    Value: !Ref TestIAMUser
+    Description: The IAM username for the user to log in.
+
+  IAMUserPassword:
+    Value: "MySecurePassword123!"
+    Description: The password for the IAM user to log in to the console.
